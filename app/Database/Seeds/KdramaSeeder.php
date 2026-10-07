@@ -6,7 +6,13 @@ use CodeIgniter\Database\Seeder;
 
 class KdramaSeeder extends Seeder
 {
-    public function run()
+    /**
+     * Seed data untuk tabel `kdramas`.
+     *
+     * Jalankan dengan:
+     *   php spark db:seed KdramaSeeder
+     */
+    public function run(): void
     {
         $data = [
             [
@@ -310,6 +316,20 @@ class KdramaSeeder extends Seeder
             ],
         ];
 
-        $this->db->table('Dramas')->insertBatch($data);
+        $now = date('Y-m-d H:i:s');
+
+        foreach ($data as &$row) {
+            $row['created_at'] = $now;
+            $row['updated_at'] = $now;
+        }
+        unset($row);
+
+        // Nama tabel harus sama dengan yang dibuat di migration: `kdramas`
+        $builder = $this->db->table('kdramas');
+
+        // Bersihkan dulu agar seeder bisa dijalankan berulang tanpa duplikasi
+        $builder->truncate();
+
+        $builder->insertBatch($data);
     }
 }

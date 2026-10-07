@@ -4,14 +4,15 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
-class CreateDramasTable extends Migration
+class CreateKdramasTable extends Migration
 {
     public function up()
     {
         $this->forge->addField([
             'id' => [
-                'type'           => 'SERIAL',
-                'unsigned'       => false,
+                'type'           => 'INT',
+                'constraint'     => 11,
+                'unsigned'       => true,
                 'auto_increment' => true,
             ],
 
@@ -28,7 +29,8 @@ class CreateDramasTable extends Migration
             ],
 
             'year_of_release' => [
-                'type' => 'INTEGER',
+                'type' => 'INT',
+                'constraint' => 11,
                 'null' => true,
             ],
 
@@ -45,7 +47,8 @@ class CreateDramasTable extends Migration
             ],
 
             'number_of_episodes' => [
-                'type' => 'INTEGER',
+                'type' => 'INT',
+                'constraint' => 11,
                 'null' => true,
             ],
 
@@ -62,8 +65,8 @@ class CreateDramasTable extends Migration
             ],
 
             'rating' => [
-                'type'       => 'NUMERIC',
-                'constraint' => '2,1',
+                'type'       => 'DECIMAL',
+                'constraint' => '3,1',
                 'null'       => true,
             ],
 
@@ -103,20 +106,33 @@ class CreateDramasTable extends Migration
             ],
 
             'rank' => [
-                'type' => 'INTEGER',
+                'type' => 'INT',
+                'constraint' => 11,
+                'null' => true,
+            ],
+
+            'created_at' => [
+                'type' => 'DATETIME',
+                'null' => true,
+            ],
+            'updated_at' => [
+                'type' => 'DATETIME',
+                'null' => true,
+            ],
+            'deleted_at' => [
+                'type' => 'DATETIME',
                 'null' => true,
             ],
         ]);
 
         $this->forge->addKey('id', true);
+        $this->forge->addKey('deleted_at');
 
-        // Nama tabel yang benar
-        $this->forge->createTable('dramas');
+        $this->forge->createTable('kdramas', true);
     }
 
     public function down()
     {
-        // Nama tabel yang benar
-        $this->forge->dropTable('dramas');
+        $this->forge->dropTable('kdramas');
     }
 }
