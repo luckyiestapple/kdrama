@@ -19,6 +19,7 @@ class KdramaModel extends Model
      * Nama tabel di database.
      */
     protected $table = 'kdramas';
+    protected $primaryKey = 'id';
 
     /**
      * Mengembalikan array, bukan object.
@@ -34,12 +35,15 @@ class KdramaModel extends Model
     protected $createdField = 'created_at';
     protected $updatedField = 'updated_at';
 
-    /**
-     * Soft delete: hapus berarti isi deleted_at, bukan benar-benar hapus baris.
-     * Butuh kolom deleted_at, sudah dibuat di migration.
+    protected $dateFormat = 'datetime';
+
+    /*
+     * CATATAN: soft delete SENGAJA tidak diaktifkan.
+     * Tabel `kdramas` di migration tidak punya kolom deleted_at,
+     * jadi menyalakan $useSoftDeletes akan membuat setiap query gagal
+     * dengan error "column deleted_at does not exist".
+     * DELETE pada API karena itu hard delete.
      */
-    protected $useSoftDeletes = true;
-    protected $deletedField = 'deleted_at';
 
     /**
      * Kolom yang boleh diisi lewat mass-assignment (insert/update dari input user).
@@ -61,18 +65,6 @@ class KdramaModel extends Model
         'screenwriter',
         'cast_members',
         'production_companies',
-        'rank',
-    ];
-
-    /**
-     * Kolom yang boleh dipakai untuk filter di endpoint index.
-     * Dipakai controller untuk menolak nama filter yang tidak dikenal.
-     */
-    public array $filterable = [
-        'year_of_release',
-        'original_network',
-        'content_rating',
-        'director',
         'rank',
     ];
 
@@ -139,12 +131,4 @@ class KdramaModel extends Model
         'duration'         => ['max_length' => 'Durasi maksimal 50 karakter.'],
         'content_rating'   => ['max_length' => 'Rating konten maksimal 100 karakter.'],
     ];
-
-    /**
-     * Urutan default saat menampilkan daftar.
-     */
-    public function orderByRank(string $direction = 'ASC')
-    {
-        return $this->orderBy('rank', $direction, true);
-    }
 }

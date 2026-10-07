@@ -9,25 +9,20 @@ $routes->get('/', 'Home::index');
 | ---------------------------------------------------------------------------
 | API Kdramas
 | ---------------------------------------------------------------------------
+| Mengikuti app/README_KDRAMAS.md bagian 11.
 | Controller: app/Controllers/Api/Kdramas.php
-| Prefix URL: /api/kdramas
 |
-| Daftar route yang dibuat oleh $routes->resource():
-|   GET    /api/kdramas              Api\Kdramas::index
-|   POST   /api/kdramas              Api\Kdramas::create
-|   GET    /api/kdramas/{id}         Api\Kdramas::show
-|   PUT    /api/kdramas/{id}         Api\Kdramas::update
-|   PATCH  /api/kdramas/{id}         Api\Kdramas::update
-|   DELETE /api/kdramas/{id}         Api\Kdramas::delete
+| Route yang dihasilkan:
+|   GET    api/kdramas      -> Kdramas::index
+|   POST   api/kdramas      -> Kdramas::create
+|   GET    api/kdramas/(.*) -> Kdramas::show
+|   PUT    api/kdramas/(.*) -> Kdramas::update
+|   PATCH  api/kdramas/(.*) -> Kdramas::update
+|   DELETE api/kdramas/(.*) -> Kdramas::delete
 |
-| 'except' membuang new & edit karena keduanya hanya untuk form HTML,
-| tidak relevan untuk API.
+| 'except' membuang new & edit karena keduanya hanya untuk form HTML.
 */
 
-$routes->get('api/kdramas/search/(:segment)', 'Api\Kdramas::search/$1');
-
-$routes->resource('api/kdramas', [
-    'controller'  => 'Api\Kdramas',
-    'placeholder' => '(:num)',
-    'except'      => 'new,edit',
-]);
+$routes->group('api', ['namespace' => 'App\Controllers\Api'], static function ($routes) {
+    $routes->resource('kdramas', ['except' => 'new,edit']);
+});
