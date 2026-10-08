@@ -17,6 +17,7 @@ class KdramaSeeder extends Seeder
         $data = [
             [
                 'name' => 'Move to Heaven',
+                'slug' => 'move-to-heaven',
                 'aired_date' => 'May 14, 2021',
                 'year_of_release' => 2021,
                 'original_network' => 'Netflix',
@@ -37,6 +38,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Flower of Evil',
+                'slug' => 'flower-of-evil',
                 'aired_date' => 'Jul 29, 2020 - Sep 23, 2020',
                 'year_of_release' => 2020,
                 'original_network' => 'tvN',
@@ -57,6 +59,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Hospital Playlist',
+                'slug' => 'hospital-playlist',
                 'aired_date' => 'Mar 12, 2020 - May 28, 2020',
                 'year_of_release' => 2020,
                 'original_network' => 'Netflix, tvN',
@@ -77,6 +80,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Hospital Playlist 2',
+                'slug' => 'hospital-playlist-2',
                 'aired_date' => 'Jun 17, 2021 - Sep 16, 2021',
                 'year_of_release' => 2021,
                 'original_network' => 'Netflix, tvN',
@@ -97,6 +101,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'My Mister',
+                'slug' => 'my-mister',
                 'aired_date' => 'Mar 21, 2018 - May 17, 2018',
                 'year_of_release' => 2018,
                 'original_network' => 'tvN',
@@ -117,6 +122,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Reply 1988',
+                'slug' => 'reply-1988',
                 'aired_date' => 'Nov 6, 2015 - Jan 16, 2016',
                 'year_of_release' => 2015,
                 'original_network' => 'tvN',
@@ -137,6 +143,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Weak Hero Class 1',
+                'slug' => 'weak-hero-class-1',
                 'aired_date' => 'Nov 18, 2022',
                 'year_of_release' => 2022,
                 'original_network' => 'Wavve',
@@ -157,6 +164,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Prison Playbook',
+                'slug' => 'prison-playbook',
                 'aired_date' => 'Nov 22, 2017 - Jan 18, 2018',
                 'year_of_release' => 2017,
                 'original_network' => 'Netflix, tvN',
@@ -177,6 +185,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Alchemy of Souls',
+                'slug' => 'alchemy-of-souls',
                 'aired_date' => 'Jun 18, 2022 - Aug 28, 2022',
                 'year_of_release' => 2022,
                 'original_network' => 'Netflix, tvN',
@@ -197,6 +206,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Extraordinary Attorney Woo',
+                'slug' => 'extraordinary-attorney-woo',
                 'aired_date' => 'Jun 29, 2022 - Aug 18, 2022',
                 'year_of_release' => 2022,
                 'original_network' => 'ENA, Netflix',
@@ -217,6 +227,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Mr. Queen',
+                'slug' => 'mr-queen',
                 'aired_date' => 'Dec 12, 2020 - Feb 14, 2021',
                 'year_of_release' => 2020,
                 'original_network' => 'tvN',
@@ -237,6 +248,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Mother',
+                'slug' => 'mother',
                 'aired_date' => 'Jan 24, 2018 - Mar 15, 2018',
                 'year_of_release' => 2018,
                 'original_network' => 'tvN',
@@ -257,6 +269,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'It’s Okay to Not Be Okay',
+                'slug' => 'it-s-okay-to-not-be-okay',
                 'aired_date' => 'Jun 20, 2020 - Aug 9, 2020',
                 'year_of_release' => 2020,
                 'original_network' => 'Netflix, tvN',
@@ -277,6 +290,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Crash Landing on You',
+                'slug' => 'crash-landing-on-you',
                 'aired_date' => 'Dec 14, 2019 - Feb 16, 2020',
                 'year_of_release' => 2019,
                 'original_network' => 'Netflix, tvN',
@@ -297,6 +311,7 @@ class KdramaSeeder extends Seeder
 
             [
                 'name' => 'Vincenzo',
+                'slug' => 'vincenzo',
                 'aired_date' => 'Feb 20, 2021 - May 2, 2021',
                 'year_of_release' => 2021,
                 'original_network' => 'Netflix, tvN',

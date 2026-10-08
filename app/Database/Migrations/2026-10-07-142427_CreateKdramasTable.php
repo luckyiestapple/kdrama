@@ -7,11 +7,17 @@ use CodeIgniter\Database\Migration;
 /**
  * Membuat tabel `kdramas`.
  *
- * Mengikuti app/README_KDRAMAS.md bagian 5 & 6:
+ * Mengikuti app/README_KDRAMAS.md bagian 5 & 6, dengan tambahan kolom
+ * `slug`:
  * - Driver PostgreSQL, primary key pakai SERIAL
+ * - slug VARCHAR(255) NOT NULL UNIQUE
  * - rating NUMERIC(3,1)
  * - created_at & updated_at TIMESTAMP NOT NULL
  * - TIDAK ada kolom deleted_at, jadi delete nanti hard delete
+ *
+ * `slug` bisa langsung dibuat NOT NULL karena tabel dibuat dari nol
+ * di migration ini, tidak perlu tahap backfill seperti kalau slug
+ * ditambahkan ke tabel yang sudah berisi data.
  *
  * Catatan: migration ini membuat TABEL, bukan database.
  * Database `kdrama` harus dibuat manual dulu.
@@ -30,6 +36,12 @@ class CreateKdramasTable extends Migration
                 'type'       => 'VARCHAR',
                 'constraint' => 255,
                 'null'       => false,
+            ],
+            'slug' => [
+                'type'       => 'VARCHAR',
+                'constraint' => 255,
+                'null'       => false,
+                'unique'     => true,
             ],
             'aired_date' => [
                 'type'       => 'VARCHAR',

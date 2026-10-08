@@ -50,6 +50,7 @@ class KdramaModel extends Model
      */
     protected $allowedFields = [
         'name',
+        'slug',
         'aired_date',
         'year_of_release',
         'original_network',
@@ -82,6 +83,7 @@ class KdramaModel extends Model
      */
     protected $validationRules = [
         'name'              => 'min_length[2]|max_length[255]',
+        'slug'              => 'permit_empty|max_length[255]',
         'aired_date'        => 'permit_empty|max_length[100]',
         'year_of_release'   => 'permit_empty|integer|greater_than_equal_to[1900]|less_than_equal_to[2100]',
         'original_network'  => 'permit_empty|max_length[255]',
@@ -108,6 +110,9 @@ class KdramaModel extends Model
             'min_length'  => 'Nama kdrama minimal 2 karakter.',
             'max_length'  => 'Nama kdrama maksimal 255 karakter.',
         ],
+        'slug' => [
+            'max_length'  => 'Slug maksimal 255 karakter.',
+        ],
         'year_of_release' => [
             'integer'     => 'Tahun rilis harus berupa angka.',
             'greater_than_equal_to' => 'Tahun rilis tidak boleh kurang dari 1900.',
@@ -131,4 +136,70 @@ class KdramaModel extends Model
         'duration'         => ['max_length' => 'Durasi maksimal 50 karakter.'],
         'content_rating'   => ['max_length' => 'Rating konten maksimal 100 karakter.'],
     ];
+
+    // -----------------------------------------------------------------
+    // Slug
+    // -----------------------------------------------------------------
+
+    /**
+     * Ubah teks bebas menjadi slug.
+     *
+     * Hanya menyisakan a-z dan 0-9, sisanya diganti tanda hubung.
+     * Contoh: "Mr. Queen" -> "mr-queen", "Reply 1988" -> "reply-1988".
+     *
+     * Sengaja tidak memakai regex_rule validasi: lebih aman cleaning
+     * di awal daripada menolak input, jadi user tidak perlu tahu
+     * aturan slug.
+     */
+    public function slugify(string $text): string
+    {
+        $text = strtolower(trim($text));
+        $text = (string) preg_replace('/[^a-z0-9]+/', '-', $text);
+
+        return trim($text, '-');
+    }
+
+    /**
+     * Cek apakah slug sudah dipakai drama lain.
+     *
+     * Pakai instance BARU, bukan $this, supaya kondisi where di sini
+     * tidak ikut terbawa ke query insert/update berikutnya.
+     */
+    public function slugExists(string $slug, $exceptId = null): bool
+    {
+        $query = new static();
+
+        if ($exceptId !== null) {
+            $query->where('id !=', $exceptId);
+        }
+
+        return $query->where('slug', $slug)->first() !== null;
+    }
+
+    /**
+     * Buat slug yang dijamin belum dipakai drama lain.
+     *
+     * Kalau nama aslinya bentrok, ditambahkan angka di belakang:
+     *   crash-landing-on-you
+     *   crash-landing-on-you-2
+     *   crash-landing-on-you-3
+     */
+    public function makeUniqueSlug(string $source, $exceptId = null): string
+    {
+        $slug = $this->slugify($source);
+
+        if ($slug === '') {
+            $slug = 'kdrama';
+        }
+
+        $candidate = $slug;
+        $counter   = 2;
+
+        while ($this->slugExists($candidate, $exceptId)) {
+            $candidate = $slug . '-' . $counter;
+            $counter++;
+        }
+
+        return $candidate;
+    }
 }

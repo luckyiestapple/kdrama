@@ -16,6 +16,7 @@ Acuan spesifikasi: `README_KDRAMAS.md`.
 7. [Testing dengan Postman](#7-testing-dengan-postman)
 8. [Perilaku Edge Case](#8-perilaku-edge-case-yang-perlu-diketahui)
 9. [Troubleshooting](#9-troubleshooting)
+10. [Alur Kodingan](#10-alur-kodingan-request-lifecycle)
 
 ---
 
@@ -170,11 +171,43 @@ Semua route memakai prefix `/api/kdramas`.
 | Method | Endpoint | Fungsi | Sukses |
 |---|---|---|---|
 | `GET` | `/api/kdramas` | Ambil semua K-drama | `200` |
+| `GET` | `/api/kdramas?year_of_release=2021` | Filter berdasarkan kolom | `200` |
+| `GET` | `/api/kdramas/search/{keyword}` | Cari bebas pada kolom teks | `200` |
 | `GET` | `/api/kdramas/{id}` | Ambil detail satu K-drama | `200` |
 | `POST` | `/api/kdramas` | Tambah K-drama baru | `201` |
 | `PUT` | `/api/kdramas/{id}` | Ganti data K-drama | `200` |
 | `PATCH` | `/api/kdramas/{id}` | Ubah sebagian data | `200` |
 | `DELETE` | `/api/kdramas/{id}` | Hapus K-drama | `200` |
+
+### Kolom yang bisa difilter
+
+`GET /api/kdramas` menerima query string berikut:
+
+| Parameter | Tipe | Contoh |
+|---|---|---|
+| `year_of_release` | angka | `?year_of_release=2021` |
+| `rank` | angka | `?rank=1` |
+| `original_network` | teks, pencocokan persis | `?original_network=tvN` |
+| `content_rating` | teks, pencocokan persis | `?content_rating=15+` |
+| `director` | teks, pencocokan persis | `?director=Kim Won Suk` |
+| `slug` | teks, pencocokan persis | `?slug=my-mister` |
+
+Boleh dipakai berurutan, hasilnya digabung dengan AND:
+
+```text
+/api/kdramas?year_of_release=2021&original_network=tvN
+```
+
+> Filter angka wajib angka. Kalau mengirim `?year_of_release=abc`,
+> jawabannya `400`, bukan diteruskan ke database.
+
+### Kolom yang dicari oleh `/search`
+
+`name`, `slug`, `director`, `screenwriter`, `cast_members`, `genre`,
+`tags`, `original_network`, `synopsis`.
+
+Pencarian memakai `LIKE` (mengandung), jadi `tvn` akan menemukan
+`tvN, Netflix`. Semua kondisi dibungkus `groupStart()`/`groupEnd()`.
 
 ---
 
@@ -225,6 +258,38 @@ satu baris konversi di model.
 > **Perbedaan antar terminal.** Kamu memakai Windows, dan Windows CMD
 > **tidak bisa** memakai single quote `'`. Karena itu tiap perintah
 > di bawah punya 3 versi. Pilih sesuai terminal yang kamu pakai.
+
+### 5.0.slug — Sudah termasuk dalam migration utama
+
+Kolom `slug` sekarang dibuat langsung oleh migration utama
+(`CreateKdramasTable`), jadi **tidak ada migration kedua**. Sekali
+`php spark migrate` sudah cukup.
+
+Kalau sebelumnya kamu sudah pernah menjalankan migration versi lama
+sebelum kolom `slug` ada, tabelnya harus dibangun ulang:
+
+```bash
+php spark migrate:rollback
+php spark migrate
+php spark db:seed KdramaSeeder
+```
+
+Cek slug sudah terisi:
+
+```bash
+php spark db:query "SELECT id, name, slug FROM kdramas ORDER BY id LIMIT 5;"
+```
+
+Hasilnya kira-kira:
+
+```text
+id | name                     | slug
+ 1 | Move to Heaven           | move-to-heaven
+ 2 | Flower of Evil           | flower-of-evil
+ 3 | Hospital Playlist        | hospital-playlist
+ 4 | Hospital Playlist 2      | hospital-playlist-2
+ 5 | My Mister                | my-mister
+```
 
 ### 5.1 GET — Ambil semua K-drama
 
@@ -383,6 +448,169 @@ datanya sudah hilang dari database.
 
 ---
 
+---
+
+### 5.11 GET — Filter berdasarkan tahun
+
+```bash
+curl -X GET "http://localhost:8080/api/kdramas?year_of_release=2021"
+```
+
+**Harus** `200`, dan hanya berisi drama tahun 2021
+(Move to Heaven, Hospital Playlist 2, Vincenzo).
+
+Gabung beberapa filter:
+
+```bash
+curl -X GET "http://localhost:8080/api/kdramas?year_of_release=2020&original_network=tvN"
+```
+
+Filter angka harus angka — kalau tidak, dapat `400`:
+
+```bash
+curl -X GET "http://localhost:8080/api/kdramas?year_of_release=abc"
+```
+
+```json
+{
+    "status": 400,
+    "code": 400,
+    "messages": {
+        "year_of_release": "Filter year_of_release harus berupa angka."
+    }
+}
+```
+
+---
+
+### 5.12 GET — Pencarian bebas
+
+```bash
+curl -X GET http://localhost:8080/api/kdramas/search/vincenzo
+```
+
+```bash
+curl -X GET http://localhost:8080/api/kdramas/search/tvN
+```
+
+**Harus** `200`:
+
+```json
+{
+    "status": 200,
+    "message": "Hasil pencarian K-drama",
+    "keyword": "vincenzo",
+    "total": 1,
+    "data": [ ... ]
+}
+```
+
+Kata kunci kosong atau terlalu panjang dapat `400`.
+
+---
+
+### 5.13 POST — Slug otomatis dari nama
+
+Kirim tanpa `slug`:
+
+```bash
+curl -X POST http://localhost:8080/api/kdramas \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Winter Sonata 2026","year_of_release":2026}'
+```
+
+**Harus** `201`, dan slug-nya jadi `winter-sonata-2026`.
+
+Kalau ada dua drama dengan nama sama, keduanya tetap aman — yang kedua
+dapat suffix angka (`namanya-sama-2`).
+
+---
+
+### 5.14 POST — Slug dipakai drama lain (uji 400)
+
+Kirim `slug` yang sudah dipakai:
+
+```bash
+curl -X POST http://localhost:8080/api/kdramas \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Judul Baru","slug":"move-to-heaven"}'
+```
+
+**Harus** HTTP `400`:
+
+```json
+{
+    "status": 400,
+    "code": 400,
+    "messages": {
+        "slug": "Maaf, gagal menambahkan karena slug sudah digunakan oleh drama lain."
+    }
+}
+```
+
+---
+
+### 5.15 PUT — Ubah slug jadi milik drama lain (uji pesan error)
+
+```bash
+curl -X PUT http://localhost:8080/api/kdramas/3 \
+  -H "Content-Type: application/json" \
+  -d '{"slug":"move-to-heaven"}'
+```
+
+**Harus** HTTP `400` dengan pesan yang kamu minta:
+
+```json
+{
+    "status": 400,
+    "code": 400,
+    "messages": {
+        "slug": "Maaf Update gagal karena slug sudah di gunakan oleh drama lain"
+    }
+}
+```
+
+---
+
+### 5.16 PUT — Ganti slug dengan milik sendiri (harus boleh)
+
+```bash
+curl -X PUT http://localhost:8080/api/kdramas/3 \
+  -H "Content-Type: application/json" \
+  -d '{"slug":"hospital-playlist-3"}'
+```
+
+**Harus** `200`. Drama tidak dianggap bentrok dengan dirinya sendiri.
+
+---
+
+### 5.17 PATCH — Ubah slug jadi valid
+
+```bash
+curl -X PATCH http://localhost:8080/api/kdramas/3 \
+  -H "Content-Type: application/json" \
+  -d '{"slug":"hospital-playlist-season-3"}'
+```
+
+**Harus** `200`.
+
+---
+
+### 5.18 PATCH — Ubah nama saja, slug tidak berubah
+
+```bash
+curl -X PATCH http://localhost:8080/api/kdramas/5 \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My Mister (Ganti Nama)"}'
+```
+
+**Harus** `200`, dan slug-nya **tetap** `my-mister`.
+
+> Kalau nama diedit tapi slug tidak dikirim, slug sengaja dibiarkan.
+> Kirim `slug` juga kalau kamu memang ingin slug ikut berubah.
+
+---
+
 ### 5.7 GET — Data tidak ditemukan (uji 404)
 
 ```bash
@@ -480,6 +708,22 @@ Jalankan berurutan, tandai ✅ atau ❌.
 | 8 | GET ID tidak ada | `GET` | `/api/kdramas/99999` | `404` |
 | 9 | POST body kosong/JSON rusak | `POST` | `{rusak` | `400` |
 
+### Tambahan: slug dan pencarian
+
+| # | Skenario | Method | Endpoint | Expected |
+|---|---|---|---|---|
+| 10 | Filter berdasarkan tahun | `GET` | `/api/kdramas?year_of_release=2021` | `200` |
+| 11 | Filter tahun bukan angka | `GET` | `/api/kdramas?year_of_release=abc` | `400` |
+| 12 | Pencarian bebas | `GET` | `/api/kdramas/search/vincenzo` | `200` |
+| 13 | POST tanpa slug (otomatis) | `POST` | `{"name":"Uji Slug Otomatis"}` | `201` |
+| 14 | POST slug sudah dipakai | `POST` | slug `move-to-heaven` | `400` |
+| 15 | PUT slug dipakai drama lain | `PUT` | `/api/kdramas/3` slug `move-to-heaven` | `400` + pesan khusus |
+| 16 | PUT slug milik sendiri | `PUT` | `/api/kdramas/3` slug baru | `200` |
+| 17 | PATCH nama saja, slug tetap | `PATCH` | `/api/kdramas/5` | `200`, slug tidak berubah |
+
+> Jalankan nomor 10–17 **setelah** nomor 1–9, karena sebagian butuh data
+> hasil seeder yang sudah ada.
+
 Cara paling cepat cek status code tanpa parse output JSON:
 
 ```cmd
@@ -514,20 +758,74 @@ Tambahkan environment variable:
 | Nama | Method | URL |
 |---|---|---|
 | Get All | `GET` | `{{base_url}}/kdramas` |
+| Filter Tahun | `GET` | `{{base_url}}/kdramas?year_of_release=2021` |
+| Filter Gabung | `GET` | `{{base_url}}/kdramas?year_of_release=2020&original_network=tvN` |
+| Search | `GET` | `{{base_url}}/kdramas/search/tvN` |
 | Get Detail | `GET` | `{{base_url}}/kdramas/{{id}}` |
 | Create | `POST` | `{{base_url}}/kdramas` |
 | Update | `PUT` | `{{base_url}}/kdramas/{{id}}` |
 | Patch | `PATCH` | `{{base_url}}/kdramas/{{id}}` |
+| Ubah Slug Jadi Bentrok | `PUT` | `{{base_url}}/kdramas/{{id}}` |
 | Delete | `DELETE` | `{{base_url}}/kdramas/{{id}}` |
+
+> Untuk `Filter Tahun`, `Filter Gabung`, dan `Search`, jangan isi tab Body.
+> Query string sudah cukup.
+
+### Body per request
+
+#### `Create` (POST) — slug otomatis
+
+```json
+{
+  "name": "Vincenzo",
+  "year_of_release": 2021,
+  "rating": 9.0,
+  "genre": "Comedy, Law, Crime",
+  "synopsis": "Seorang konsiglieri mafia KoreaITA yang kembali ke Korea Selatan."
+}
+```
+
+Tidak ada `slug` → akan dibuat otomatis jadi `vincenzo`.
+
+#### `Update` (PUT)
+
+```json
+{
+  "name": "Vincenzo (Judul Baru)",
+  "rating": 9.2
+}
+```
+
+#### `Patch` (PATCH) — ubah sebagian saja
+
+```json
+{
+  "rating": 9.3
+}
+```
+
+Field lain tidak ikut berubah. Slug juga **tidak** berubah, kecuali kamu
+kirim `slug` secara eksplisit.
+
+#### `Ubah Slug Jadi Bentrok` (PUT) — uji pesan error
+
+```json
+{
+  "slug": "move-to-heaven"
+}
+```
+
+Harus dapat `400` dengan pesan:
+`Maaf Update gagal karena slug sudah di gunakan oleh drama lain`
 
 ### Setting body
 
-Untuk `Create`, `Update`, dan `Patch`:
+Untuk `Create`, `Update`, `Patch`, dan `Ubah Slug Jadi Bentrok`:
 
 1. Tab **Body**
-2. Pilih **raw**
+2. Centang **raw**
 3. Pilih **JSON** dari dropdown tipe
-4. Isi JSON-nya
+4. Tempel JSON di atas
 
 ### Header
 
@@ -539,8 +837,60 @@ Content-Type: application/json
 
 ### Cara cek status code
 
-Klik request → tab **Body** di area response. Status code ada di bagian
-atas, misal `201 Created` atau `404 Not Found`.
+Klik request → lihat area response bagian atas. Status code tertera di
+sana, misal `200 OK`, `201 Created`, `400 Bad Request`, atau `404 Not Found`.
+
+### Tips Postman
+
+**Simpan otomatis**. Klik kanan request → **Save Response** → pilih nama,
+lalu centang **Save response for this request** di folder. Berguna kalau
+kamu perlu membandingkan sebelum/sesudah.
+
+**Lihat HTTP verb yang sebenarnya.** Kalau memakai variabel `{{id}}`,
+Postman mengirim method yang kamu pilih. Kalau mau memastikan tidak salah
+method, lihat di menu dropdown method.
+
+**Import collection.** Daripada membuat manual, kamu bisa import file
+JSON langsung lewat **Import** → **Link / Raw Text / File** → tempel JSON
+berikut, lalu klik **Import**:
+
+```json
+{
+  "info": { "name": "API K-Drama", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080/api" },
+    { "key": "id", "value": "1" }
+  ],
+  "item": [
+    { "name": "Get All", "request": { "method": "GET", "url": "{{base_url}}/kdramas" } },
+    { "name": "Filter Tahun", "request": { "method": "GET", "url": "{{base_url}}/kdramas?year_of_release=2021" } },
+    { "name": "Search", "request": { "method": "GET", "url": "{{base_url}}/kdramas/search/tvN" } },
+    { "name": "Get Detail", "request": { "method": "GET", "url": "{{base_url}}/kdramas/{{id}}" } },
+    {
+      "name": "Create",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Vincenzo\",\n  \"year_of_release\": 2021,\n  \"rating\": 9.0\n}" },
+        "url": "{{base_url}}/kdramas"
+      }
+    },
+    {
+      "name": "Patch",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"rating\": 9.3}" },
+        "url": "{{base_url}}/kdramas/{{id}}"
+      }
+    },
+    {
+      "name": "Delete",
+      "request": { "method": "DELETE", "url": "{{base_url}}/kdramas/{{id}}" }
+    }
+  ]
+}
+```
 
 ---
 
@@ -715,3 +1065,207 @@ http://localhost:8080/api/kdramas
 Kalau sudah muncul JSON dengan `"message": "Daftar K-drama"`, berarti
 CRUD sudah siap dipakai. Jalankan [checklist 9 skenario](#6-checklist-9-skenario)
 untuk memastikan semua route bekerja.
+
+---
+
+## 10. Alur Kodingan (Request Lifecycle)
+
+Bagian ini menjelaskan **sebuah request itu lewat file mana saja**, supaya
+kamu bisa menelusuri dan memperbaiki kalau ada yang tidak sesuai.
+
+### 10.1 Gambaran besar
+
+```text
+   Browser / curl / Postman
+            │
+            │  HTTP request  (GET /api/kdramas/1)
+            ▼
+   public/index.php          ← satu-satunya pintu masuk dari luar
+            │
+            ▼
+   app/Config/Routes.php     ← mencocokkan URL + method HTTP
+            │                   dengan method controller
+            ▼
+   Controllers/Api/Kdramas.php ← logika: baca input, validasi,
+            │                   panggil model, bentuk response
+            ▼
+   Models/KdramaModel.php    ← nama tabel, kolom yang boleh diisi,
+            │                   aturan validasi, timestamp
+            ▼
+   PostgreSQL (tabel kdramas)
+            │
+            ▼
+   Response JSON  ──────────►  kembali ke client
+```
+
+### 10.2 Detail per file
+
+#### `public/index.php`
+
+Satu-satunya file yang boleh diakses dari luar. Semua request masuk ke sini
+terlebih dulu, lalu framework mengambil alih. Jangan pernah mengarah web
+server ke root project — harus ke folder `public/`.
+
+#### `app/Config/Routes.php`
+
+Mencocokkan URL dengan method controller:
+
+```php
+$routes->group('api', ['namespace' => 'App\Controllers\Api'], static function ($routes) {
+    $routes->get('kdramas/search/(:segment)', 'Kdramas::search/$1');
+
+    $routes->resource('kdramas', ['except' => 'new,edit']);
+});
+```
+
+Artinya:
+
+| Yang ditulis | Caller ketik |
+|---|---|
+| `kdramas` + `GET` | `GET /api/kdramas` |
+| `kdramas` + `POST` | `POST /api/kdramas` |
+| `kdramas/search/(:segment)` | `GET /api/kdramas/search/iberia` |
+| `kdramas/(:num)` + `GET` | `GET /api/kdramas/1` |
+| `kdramas/(:num)` + `DELETE` | `DELETE /api/kdramas/1` |
+
+> **Urutan penting.** Route `search` harus ditulis **sebelum** `resource()`.
+> Kalau dibalik, `GET /api/kdramas/search/iberia` akan cocok ke
+> `kdramas/(.*)` dan memanggil `show("search")`, hasilnya 404.
+
+#### `app/Controllers/Api/Kdramas.php`
+
+Inilah tempat logika berada.(resourceController yang menyediakan
+`respond()`, `respondCreated()`, `failNotFound()`, `failValidationErrors()`).
+
+Setiap method punya 3 langkah yang sama:
+
+1. **Baca input** — dari body JSON, query string, atau URL
+2. **Cek model** — kalau datanya tidak ada, kembalikan `failNotFound()`
+3. **Balas** — `respond()` untuk 200, `respondCreated()` untuk 201
+
+#### `app/Models/KdramaModel.php`
+
+Menjaga aturan data. Empat hal penting di sini:
+
+| Properti | Fungsi |
+|---|---|
+| `$table = 'kdramas'` | Nama tabel |
+| `$allowedFields` | **Hanya kolom ini** yang boleh diisi dari luar. `id` tidak ada di sini, jadi tidak bisa di-ubah lewat API |
+| `$validationRules` | Aturan yang harus lolos sebelum data disimpan |
+| `$useTimestamps = true` | CI4 mengisi `created_at` dan `updated_at` otomatis |
+
+### 10.3 Alur data saat POST (menambah drama)
+
+```text
+1. Client kirim JSON
+   {"name":"Vincenzo","year_of_release":2021}
+
+2. Controller: payload()
+   getJSON(true)  →  diubah jadi array asosiatif
+
+3. Controller: cek name kosong?
+   ya  → failValidationErrors()  → 400, berhenti
+   tidak → lanjut
+
+4. Controller: resolveSlug()
+   slug dikirim?  tidak  → buat otomatis dari name: "vincenzo"
+   slug dikirim?  ya    → cek sudah dipakai drama lain?
+                           ya  → 400, berhenti
+                           tidak → pakai slug itu
+
+5. Model: validasi
+   gagal  → return false, controller balas failValidationErrors() → 400
+   sukses → lanjut
+
+6. Model: doProtectFields()
+   buang semua key yang TIDAK ada di $allowedFields
+   (jadi user tidak bisa mengarang kolom, dan tidak bisa menimpa id)
+
+7. Model: setCreatedField() + setUpdatedField()
+   tambahkan created_at dan updated_at
+
+8. Database: INSERT
+
+9. Controller: respondCreated()  → 201 Created + data drama yang baru
+```
+
+### 10.4 Alur data saat PATCH (ubah sebagian)
+
+```text
+1. Controller: model->find($id)
+   tidak ketemu  → failNotFound() → 404
+
+2. Controller: payload()
+   body kosong  → failValidationErrors() → 400
+
+3. Controller: HANYA proses field yang benar-benar dikirim
+   mis. hanya "rating"  →  kolom lain tidak di sentuh
+
+4. Model->update($id, $data)
+   validasi field yang dikirim saja
+   (itulah kenapa $validationRules tidak boleh ada rule `required`,
+    kalau ada, setiap PATCH parsial akan ditolak)
+
+5. Database: UPDATE ... SET rating = 9.2 WHERE id = 1
+   created_at tetap, updated_at diperbarui
+
+6. respond()  → 200 + data terbaru
+```
+
+### 10.5 Urutan validasi saat UPDATE
+
+```text
+1. Drama ada?                        tidak → 404
+2. Body valid?                       tidak → 400
+3. name (kalau dikirim) tidak kosong? tidak → 400
+4. slug (kalau dikirim) bentrok?      ya   → 400 "Maaf Update gagal..."
+5. Validasi model                    gagal → 400
+6. Simpan                            → 200
+```
+
+Poin penting: nomor 4 dicek **sebelum** nomor 5. Kalau urutannya dibalik,
+user akan melihat pesan error validasi umum, bukan pesan "slug sudah
+dipakai" yang mereka butuhkan.
+
+### 10.6 Kenapa slug dicek dua kali
+
+Validasi slug terjadi di dua tempat, dan itu disengaja:
+
+| Lapisan | Menangkap apa |
+|---|---|
+| PHP (`resolveSlug`) | Pesan error yang ramah: *"Maaf Update gagal karena slug sudah di gunakan oleh drama lain"* |
+| Database (UNIQUE) | Dua request bersamaan yang lolos PHP bersamaan-sama. PHP tidak bisa mencegah ini |
+
+Kalau hanya salah satu, yang weakest link-nya jadi bisa ditembus.
+
+### 10.7 Cara menelusuri masalah
+
+Kalau response tidak sesuai harapan, periksa dari belakang ke depan:
+
+```text
+JSON yang kamu terima sudah benar?
+  ↓ ya
+Cek ResponseTrait: status code-nya sesuai?
+  ↓ ya
+Cek controller: method mana yang kena?
+  ↓ ya
+Cek model: validasi lolos? kolom ter-filter?
+  ↓ ya
+Cek migration: kolomnya ada di tabel?
+```
+
+Contoh: `GET /api/kdramas` balas `500` dengan
+`column "slug" does not exist` — artinya migration belum dijalankan
+setelah kolom slug ditambahkan. Bukan salah kode controller.
+
+### 10.8 Menambah fitur baru — checklist
+
+```text
+1. Butuh kolom baru?      → tambah di CreateKdramasTable.php
+                            (lalu php spark migrate:rollback && migrate)
+2. Kolom itu boleh diisi user? → tambah ke $allowedFields di model
+3. Perlu validasi?       → tambah ke $validationRules (+ $validationMessages)
+4. Perlu endpoint baru?  → tambah method di controller
+5. Perlu URL baru?       → tambah route SEBELUM resource()
+6. Uji dengan curl       → lihat bagan 5
+```
